@@ -1,0 +1,173 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  user
+}
+
+enum Gender {
+  male
+  female
+}
+
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  email           String   @unique
+  password        String
+  role            Role     @default(user)
+  isEmailVerified Boolean  @default(false) @map("is_email_verified")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  profiles     Profile[]
+  transactions Transaction[]
+  wishlists    Wishlist[]
+  reviews      Review[]
+  otps         OTP[]
+  Reply        Reply[]
+
+  createdCategories Category[] @relation("CategoryCreatedBy")
+  deletedCategories Category[] @relation("CategoryDeletedBy")
+
+  createdProducts Product[] @relation("ProductCreatedBy")
+  deletedProducts Product[] @relation("ProductDeletedBy")
+}
+
+model Profile {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  fullname  String
+  nickname  String
+  gender    Gender
+  phone     String
+  address   String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OTP {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  otpCode   String   @map("otp_code")
+  expiresAt DateTime @map("expires_at") @db.Timestamp(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  createdBy String    @map("created_by") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamp(6)
+  deletedBy String?   @map("deleted_by") @db.Uuid
+
+  products Product[]
+
+  createdByUser User? @relation("CategoryCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade)
+  deletedByUser User? @relation("CategoryDeletedBy", fields: [deletedBy], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id          String    @id @default(uuid()) @db.Uuid
+  categoryId  String    @map("category_id") @db.Uuid
+  name        String
+  description String
+  price       Decimal   @db.Decimal
+  stock       Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamp(6)
+  deletedBy   String?   @map("deleted_by") @db.Uuid
+  createdBy   String    @map("created_by") @db.Uuid
+
+  category     Category       @relation(fields: [categoryId], references: [id])
+  transactions Transaction[]
+  wishlists    Wishlist[]
+  reviews      Review[]
+  images       ProductImage[]
+
+  createdByUser User? @relation("ProductCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade)
+  deletedByUser User? @relation("ProductDeletedBy", fields: [deletedBy], references: [id], onDelete: Cascade)
+}
+
+model ProductImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  imageUrl  String?  @map("image_url")
+  publicId  String?  @map("public_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  productId     String   @map("product_id") @db.Uuid
+  totalAmount   Decimal  @map("total_amount") @db.Decimal
+  totalItems    Int      @default(0) @map("total_items")
+  status        String   @default("pending")
+  paymentMethod String?  @map("payment_method")
+  paymentUrl    String?  @map("payment_url")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Wishlist {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  rating    Int
+  review    String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  Reply   Reply[]
+}
+
+model Reply {
+  id        String   @id @default(uuid()) @db.Uuid
+  reviewId  String   @map("review_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  reply     String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
